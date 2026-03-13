@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Пурпулезовы рассказы</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #1a1a1a;
+            margin: 0;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            width: 100vw;
+            perspective: 5000px;
+        }
+
+        #loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            transition: opacity 0.5s ease;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #6729B1;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .book-viewport {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.5s ease;
+        }
+
+        .book-container {
+            width: 380px;
+            height: 570px;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .book-container.shifted {
+            transform: translateX(190px);
+        }
+
+        .book {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transform-style: preserve-3d;
+        }
+
+        .page {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            transform-origin: left center;
+            transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1), z-index 0s;
+            transform-style: preserve-3d;
+            pointer-events: auto;
+        }
+
+        .page-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            padding: 40px 30px;
+            display: flex;
+            flex-direction: column;
+            background: white;
+            border-radius: 0 5px 5px 0;
+            box-shadow: inset 3px 0 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .page-back {
+            transform: rotateY(180deg);
+            background: #ffffff;
+            border-radius: 5px 0 0 5px;
+            box-shadow: inset -10px 0 20px rgba(0,0,0,0.1);
+        }
+
+        .cover-front {
+            z-index: 900;
+            cursor: pointer;
+        }
+
+        .cover-front-side {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            border-radius: 0 5px 5px 0;
+        }
+
+        .cover-front-inner {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-color: #6729B1;
+            transform: rotateY(180deg);
+            backface-visibility: hidden;
+            border-radius: 5px 0 0 5px;
+        }
+
+        .cover-front img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 0 5px 5px 0;
+        }
+
+        .cover-back-static {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-color: #6729B1;
+            transform: translateZ(-200px);
+            border-radius: 0 5px 5px 0;
+            box-shadow: 15px 15px 50px rgba(0,0,0,0.7);
+            pointer-events: none;
+            z-index: -1000;
+        }
+
+        .book-spine {
+            position: absolute;
+            width: 40px;
+            height: 100%;
+            background: #52218d;
+            left: -20px;
+            transform: rotateY(-90deg);
+            transform-origin: right center;
+            z-index: 1000;
+        }
+
+        .title-text {
+            font-family: 'Georgia', serif;
+            font-weight: bold;
+            font-size: 22px;
+            color: #1a1a1a;
+            text-align: center;
+            margin-bottom: 5px;
+        }
+
+        .subtitle-text {
+            font-family: 'Georgia', serif;
+            font-style: italic;
+            font-size: 14px;
+            color: #666;
+            text-align: center;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+
+        .story-content {
+            font-family: 'Georgia', serif;
+            font-size: 16px;
+            line-height: 1.6;
+            color: #333;
+            text-align: left;
+            flex-grow: 1;
+            word-wrap: break-word;
+        }
+
+        .page-number {
+            font-family: 'Georgia', serif;
+            font-size: 12px;
+            color: #aaa;
+            text-align: center;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loader">
+        <div class="spinner"></div>
+        <p class="text-white mt-4 font-mono">Пурпулезовы рассказы...</p>
+    </div>
+
+    <div class="book-viewport" id="viewport">
+        <div class="book-container" id="bookContainer">
+            <div class="book" id="book">
+                <div class="book-spine"></div>
+                <div class="cover-back-static"></div>
+                <div id="dynamic-pages"></div>
+                <div class="page cover-front" id="mainCover" data-index="-1" data-base-z="900" onclick="handleFlip(this, event)">
+                    <div class="cover-front-side">
+                        <img id="coverImg" src="https://www.dropbox.com/scl/fi/sz9ipkg6x75ux00wntq75/260_20260311222315.png?rlkey=pf4hlzh4g64xsas2bxn8g228e&st=hhxg92wc&dl=1" alt="Обложка">
+                    </div>
+                    <div class="cover-front-inner"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const stories = [
+            {
+                title: "Летающий взвзыхв",
+                subtitle: "сказка",
+                text: "Один раз, спокойно сидя в своем доме я услышал стук в дверь. Подумав, что это мой друг оранжлезка который обещал в это время прийти, я решил открыть дверь. За дверью вместо друга я встретил летающую черепаху.\n\n- Ты что такое? - спросил я\n\nОна закинула меня на свой панцирь и полетела. Я испугался, и не знал куда она меня увозит. Она летела так быстро, что подо мной мелькали леса, поля, города. Пока я летел, меня чуть не сносило ветром. Вскоре, увидев что я прихватил с собой телефон я включил его и увидел, что у меня есть мобильный инет и мне уже пишет оранжлезка.\n\n- Ты там где? Открой дверь уже! - писал оранжлезка.\n\n- ДА Ч ЛЕЧУ НА ЛЕТАЮЩЕМ... - и тут черепаха скинула меня около пляжа с другими тапками. Из-за падения, я не смог написать нормально и вышло Летающий взвзыхв. Так я и стал его называть. Конец!"
+            },
+            {
+                title: "Пакет",
+                subtitle: "рассказ",
+                text: "Как то раз, ходя по улице с друзьями лезками нам захотелось покушать.\n- Пошли в магаз, купим лапшу! - сказал зелезка\n- Ну го, еще попить надо взять. - ответил я\n- А я конфет куплю! - сказал оранжлезка\nИ мы пошли в магазин. Все было обычно, улица, перекресток, магазин. Но вдруг, на входе в магазин мы увидели лежащий мокрый пакет.\n- ЗАХАХХА КТО ТО ЗАБЫЛ ПАКЕТ!! - заржал я.\n- РИЛ, ЗАХАХХА. - засмеялись остальные.\nНо вдруг, начался ветер. Пакет оторвался от земли. Он полетел в небо, и мы забыли и покупках и побежали за ним.\n- БЕЖИМ ЗА НИМ!! - кричали, запыхавшись мы.\nВскоре, пакет влетел на балкон к бабушке.\n- О! Чайка лети... - сказала бабушка, и в неё врезался пакет. - Господи, что за пакет?\nМы, смотревшие на это, были удивлены. Но мы пошли в магазин как будто ничего и не было, купили все что надо и продолжили гулять. Конец."
+            }
+        ];
+
+        function paginate() {
+            const container = document.getElementById('dynamic-pages');
+            const tempDiv = document.createElement('div');
+            tempDiv.style.width = '320px'; 
+            tempDiv.style.padding = '40px 30px';
+            tempDiv.style.fontSize = '16px';
+            tempDiv.style.lineHeight = '1.6';
+            tempDiv.style.fontFamily = 'Georgia, serif';
+            tempDiv.style.visibility = 'hidden';
+            tempDiv.style.position = 'absolute';
+            document.body.appendChild(tempDiv);
+
+            const maxH = 460;
+            let pagesData = [];
+
+            for (let s = 0; s < stories.length; s++) {
+                if (s === 1) {
+                    while (pagesData.length < 3) {
+                        pagesData.push({ text: "", isStart: false });
+                    }
+                }
+
+                const story = stories[s];
+                const words = story.text.split(/\s+/);
+                let currentText = "";
+                let isFirstPageOfStory = true;
+
+                for (let i = 0; i < words.length; i++) {
+                    let test = currentText + (currentText ? " " : "") + words[i];
+                    let header = isFirstPageOfStory ? `<div class="title-text">${story.title}</div><div class="subtitle-text">${story.subtitle}</div>` : '';
+                    tempDiv.innerHTML = header + '<div class="story-content">' + test.replace(/\n/g, '<br>') + '</div>';
+
+                    if (tempDiv.offsetHeight > maxH && currentText !== "") {
+                        pagesData.push({
+                            text: currentText,
+                            isStart: isFirstPageOfStory,
+                            title: story.title,
+                            subtitle: story.subtitle
+                        });
+                        currentText = words[i];
+                        isFirstPageOfStory = false;
+                    } else {
+                        currentText = test;
+                    }
+                }
+                if (currentText) {
+                    pagesData.push({
+                        text: currentText,
+                        isStart: isFirstPageOfStory,
+                        title: story.title,
+                        subtitle: story.subtitle
+                    });
+                }
+            }
+            
+            document.body.removeChild(tempDiv);
+
+            for (let i = 0; i < pagesData.length; i += 2) {
+                const pageEl = document.createElement('div');
+                pageEl.className = 'page paper-page';
+                const zIndex = 500 - (i / 2);
+                pageEl.style.zIndex = zIndex;
+                pageEl.dataset.baseZ = zIndex;
+                pageEl.dataset.index = i / 2;
+                pageEl.onclick = function(e) { handleFlip(this, e); };
+
+                const frontFace = document.createElement('div');
+                frontFace.className = 'page-face';
+                let frontHtml = '';
+                if (pagesData[i].isStart) {
+                    frontHtml += `<div class="title-text">${pagesData[i].title}</div><div class="subtitle-text">${pagesData[i].subtitle}</div>`;
+                }
+                frontHtml += '<div class="story-content">' + pagesData[i].text.replace(/\n/g, '<br>') + '</div>';
+                if (pagesData[i].text !== "") frontHtml += `<div class="page-number">${i + 1}</div>`;
+                frontFace.innerHTML = frontHtml;
+
+                const backFace = document.createElement('div');
+                backFace.className = 'page-face page-back';
+                let backHtml = '';
+                if (pagesData[i + 1]) {
+                    if (pagesData[i + 1].isStart) {
+                        backHtml += `<div class="title-text">${pagesData[i + 1].title}</div><div class="subtitle-text">${pagesData[i + 1].subtitle}</div>`;
+                    }
+                    backHtml += '<div class="story-content">' + pagesData[i + 1].text.replace(/\n/g, '<br>') + '</div>';
+                    if (pagesData[i + 1].text !== "") backHtml += `<div class="page-number">${i + 2}</div>`;
+                } else {
+                    backHtml += '<div class="story-content" style="display:flex; align-items:center; justify-content:center; height:100%; opacity:0.3; font-style:italic;">Конец</div>';
+                }
+                backFace.innerHTML = backHtml;
+
+                pageEl.appendChild(frontFace);
+                pageEl.appendChild(backFace);
+                container.appendChild(pageEl);
+            }
+        }
+
+        function handleFlip(el, e) {
+            e.stopPropagation();
+            const rect = el.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            
+            const isFlipped = el.classList.contains('flipped');
+            
+            if (!isFlipped && clickX < 50) return;
+
+            el.classList.toggle('flipped');
+            const nowFlipped = el.classList.contains('flipped');
+            const idx = parseInt(el.dataset.index);
+            
+            if (nowFlipped) {
+                el.style.zIndex = 1000 + idx;
+                el.style.transform = `rotateY(-180deg) translateZ(${-idx * 2}px)`;
+            } else {
+                el.style.transform = `rotateY(0deg) translateZ(0px)`;
+                setTimeout(() => {
+                    if (!el.classList.contains('flipped')) {
+                        el.style.zIndex = el.dataset.baseZ;
+                    }
+                }, 800);
+            }
+            updateBookShift();
+        }
+
+        function updateBookShift() {
+            const flippedPages = document.querySelectorAll('.page.flipped');
+            const container = document.getElementById('bookContainer');
+            if (flippedPages.length > 0) {
+                container.classList.add('shifted');
+            } else {
+                container.classList.remove('shifted');
+            }
+        }
+
+        function resizeBook() {
+            const viewport = document.getElementById('viewport');
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+            
+            let scale = 1;
+            if (width < 850) scale = Math.min(width / 850, height / 650);
+            else scale = Math.min(1, height / 700);
+            
+            viewport.style.transform = `scale(${scale})`;
+        }
+
+        window.onload = () => {
+            const coverImg = document.getElementById('coverImg');
+            const loader = document.getElementById('loader');
+            const container = document.getElementById('bookContainer');
+
+            const startApp = () => {
+                setTimeout(() => {
+                    loader.style.opacity = '0';
+                    setTimeout(() => {
+                        loader.style.display = 'none';
+                        container.parentNode.style.display = 'flex';
+                        resizeBook();
+                    }, 500);
+                }, 1000);
+            };
+
+            if (coverImg.complete) startApp();
+            else coverImg.onload = startApp;
+        };
+
+        window.onresize = resizeBook;
+        paginate();
+    </script>
+</body>
+</html>
